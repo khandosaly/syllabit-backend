@@ -1,7 +1,6 @@
 from django.urls import path
 
-from syllabus.views import SyllabusCreateView, SyllabusCoursesListView, SyllabusTeacherSearchView, \
-    EvaluationListCreateView, SyllabusRecentView, SyllabusRetrieveView, SyllabusDocxGenerateView
+from syllabus.views import *
 
 urlpatterns = [
     path("create/", SyllabusCreateView.as_view()),
@@ -11,4 +10,5 @@ urlpatterns = [
     path("teachers", SyllabusTeacherSearchView.as_view()),
     path("evaluation/", EvaluationListCreateView.as_view()),
     path("generate/docx/<int:pk>/", SyllabusDocxGenerateView.as_view()),
+    path("sign/<int:pk>/", SyllabusSignView.as_view()),
 ]

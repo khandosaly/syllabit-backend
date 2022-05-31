@@ -82,4 +82,3 @@ class SyllabusRetrieveSerializer(serializers.ModelSerializer):
             'ON_REWORK': 'На доработке'
         }
         return choices[obj.status]
-

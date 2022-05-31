@@ -1,9 +1,13 @@
+import base64
+import json
 from wsgiref.util import FileWrapper
 
 from django.db.transaction import atomic
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
-from rest_framework.generics import GenericAPIView, CreateAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView
+from rest_framework.exceptions import APIException
+from rest_framework.generics import GenericAPIView, CreateAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, \
+    UpdateAPIView
 from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -11,7 +15,7 @@ from rest_framework.response import Response
 from syllabit import settings
 from syllabus.serializers import *
 from syllabus.models import Course, Evaluation, Syllabus
-from syllabus.utils import save_docx
+from syllabus.utils import save_docx, get_sign_info, sign_file
 from users.models import User
 
 
@@ -96,4 +100,55 @@ class SyllabusDocxGenerateView(RetrieveAPIView):
         )
         response['Content-Disposition'] = f'attachment; filename="syllabus_{self.get_object().id}.docx"'
         return response
+
+
+class SyllabusSignView(UpdateAPIView):
+    queryset = Syllabus.objects.filter()
+    serializer_class = SyllabusRetrieveSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def put(self, request, *args, **kwargs):
+        syl = self.get_object()
+        approver = syl.approvers.filter(user=request.user).first()
+        if not approver:
+            raise APIException('Вы не подписант', 403)
+        save_docx(self.get_object())
+
+        with open(f'{settings.MEDIA_ROOT}syllabus_{self.get_object().id}.docx', 'rb') as f:
+            base64_str = base64.b64encode(f.read()).decode('utf-8')
+
+        sign_hash = sign_file(
+            keystore=request.data['keystore'],
+            password=request.data['password'],
+            files=[{
+                "fileProcessIdentifier": syl.id,
+                'name': f'syllabus_{self.get_object().id}.docx',
+                'content': base64_str,
+                'mime': 'application/msword',
+                "lifetime": "2592000000"
+            }]
+        )
+
+        signer_name = json.loads(get_sign_info(
+            keystore=request.data['keystore'],
+            password=request.data['password']
+        ).text)['subject']
+
+        with open(f'{settings.MEDIA_ROOT}{signer_name}_{self.get_object().id}.sign', 'w+') as f:
+            f.write(sign_hash)
+
+        approver.sign_info = signer_name
+        approver.signed = True
+        approver.save()
+
+        syl.status = 'ACTIVE'
+        syl.save()
+
+        response = HttpResponse(
+            FileWrapper(open(f'{settings.MEDIA_ROOT}{signer_name}_{self.get_object().id}.sign', 'rb')),
+            content_type='application/text'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{signer_name}_{self.get_object().id}.sign"'
+        return response
+
 

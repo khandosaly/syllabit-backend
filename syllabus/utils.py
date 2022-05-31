@@ -1,3 +1,6 @@
+import json
+
+import requests
 from docx import Document
 from docx.shared import Pt, Cm
 
@@ -236,3 +239,36 @@ def save_docx(syl: Syllabus):
     r = p.add_run(syl.methods)
 
     document.save(f'{settings.MEDIA_ROOT}syllabus_{syl.id}.docx')
+
+
+def get_sign_info(keystore: str, password: str):
+    response = requests.post(
+        'http://127.0.0.1:8001/api/v1.0/info',
+        verify=False,
+        data=json.dumps({
+            'keystore': str(keystore),
+            'password': str(password)
+        }),
+        headers={
+            'Content-Type': 'application/json',
+            'Accept-Encoding': 'gzip, deflate, br'
+        }
+    )
+    return response
+
+
+def sign_file(keystore: str, password: str, files: list):
+    response = requests.post(
+        'http://127.0.0.1:8001/api/v1.0/sign',
+        verify=False,
+        data=json.dumps({
+            'keystore': str(keystore),
+            'password': str(password),
+            'files': files
+        }),
+        headers={
+            'Content-Type': 'application/json',
+            'Accept-Encoding': 'gzip, deflate, br'
+        }
+    )
+    return response.text

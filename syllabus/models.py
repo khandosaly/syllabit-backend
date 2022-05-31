@@ -90,5 +90,8 @@ class Approver(models.Model):
     syllabus = models.ForeignKey(to=Syllabus, related_name='approvers', on_delete=models.CASCADE)
     type = models.CharField(choices=(('COORDINATOR', 'Координатор'), ('DEAN', 'Декан')), max_length=20)
     user = models.ForeignKey(to=User, on_delete=models.DO_NOTHING)
+    signed = models.BooleanField(default=False, null=True, blank=True)
+    sign_info = models.TextField(null=True, blank=True)
+    sign_file = models.FileField(null=True, blank=True)
 
 
